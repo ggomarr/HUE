@@ -50,7 +50,7 @@ col_verts=[blue_vert,green_vert,red_vert]
 
 # Volume to brightness converter
 
-max_volume    =1000.0
+max_volume    =8000.0
 max_brightness=255
 brightness_scale=max_brightness/max_volume
 

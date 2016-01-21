@@ -29,33 +29,19 @@ class discotheque:
         if normalize_signal_to_color:
             self.signal_to_color=self.signal_to_color_normalized
             self.mem_freqs=numpy.zeros([len(param.bin_fracs),param.mem_length])
+            self.normal_freqs=numpy.zeros(len(param.bin_fracs))
+            self.prepare_picture_freqs=self.prepare_picture_freqs_normalized
+            self.update_picture_freqs=self.update_picture_freqs_normalized
         else:
             self.signal_to_color=self.signal_to_color_absolute
-               
+            self.prepare_picture_freqs=self.prepare_picture_freqs_absolute
+            self.update_picture_freqs=self.update_picture_freqs_absolute
+                           
     def signal_to_brightness(self,signal):
         self.volume=numpy.sqrt(numpy.mean(numpy.square(signal.astype('int32'))))
         target_brightness=param.brightness_scale*self.volume
         self.delta_brightness=param.inertia*self.delta_brightness+param.sluggishness*(target_brightness-self.brightness)
         self.brightness=int(self.brightness+self.delta_brightness)
-
-    def signal_to_color_normalized(self,signal):
-        freq=numpy.fft.rfft(signal)
-        self.freqs= [ numpy.sqrt(sum(numpy.square(abs(freq[freq_bin[0]:freq_bin[1]]))))
-                      for freq_bin in param.freq_bins_fft ]
-        if sum(self.freqs)>0:
-            self.mem_freqs=numpy.roll(self.mem_freqs,-1,1)
-            self.mem_freqs[:,-1]=self.freqs
-            aux_means=numpy.mean(self.mem_freqs,1)
-            aux_stds=numpy.std(self.mem_freqs,1)
-            freqs=[ scipy.stats.norm(aux_means[i],aux_stds[i]).cdf(self.freqs[i]) for i in range(len(param.bin_fracs)) ]
-            aux_bias=[ param.winner_takes_all[v] for v in numpy.argsort(freqs) ]
-            weights=numpy.multiply(freqs,aux_bias)            
-        else:
-            weights=[1]*len(param.col_verts)
-        weights=[ 1.0*w/sum(weights) for w in weights ]
-        target_color=numpy.dot(weights,param.col_verts)
-        self.delta_color=param.inertia*self.delta_color+param.sluggishness*(target_color-self.color)
-        self.color=self.color+self.delta_color
 
     def signal_to_color_absolute(self,signal):
         freq=numpy.fft.rfft(signal)
@@ -66,6 +52,26 @@ class discotheque:
             freqs=numpy.multiply(freqs,param.freq_slope)
             aux_bias=[ param.winner_takes_all[v] for v in numpy.argsort(freqs) ]
             weights=numpy.multiply(freqs,aux_bias)
+        else:
+            weights=[1]*len(param.col_verts)
+        weights=[ 1.0*w/sum(weights) for w in weights ]
+        target_color=numpy.dot(weights,param.col_verts)
+        self.delta_color=param.inertia*self.delta_color+param.sluggishness*(target_color-self.color)
+        self.color=self.color+self.delta_color
+
+    def signal_to_color_normalized(self,signal):
+        freq=numpy.fft.rfft(signal)
+        self.freqs= [ numpy.sqrt(sum(numpy.square(abs(freq[freq_bin[0]:freq_bin[1]]))))
+                      for freq_bin in param.freq_bins_fft ]
+        if sum(self.freqs)>0:
+            self.mem_freqs=numpy.roll(self.mem_freqs,-1,1)
+            self.mem_freqs[:,-1]=self.freqs
+            aux_means=numpy.mean(self.mem_freqs,1)
+            aux_stds=numpy.std(self.mem_freqs,1)
+            self.normal_freqs=(self.freqs-aux_means)/aux_stds
+            freqs=[ scipy.stats.norm(aux_means[i],aux_stds[i]).cdf(self.freqs[i]) for i in range(len(param.bin_fracs)) ]
+            aux_bias=[ param.winner_takes_all[v] for v in numpy.argsort(freqs) ]
+            weights=numpy.multiply(freqs,aux_bias)            
         else:
             weights=[1]*len(param.col_verts)
         weights=[ 1.0*w/sum(weights) for w in weights ]
@@ -101,11 +107,11 @@ class discotheque:
         if self.graph_color.lines:
             self.graph_color.lines[-1].remove()
         pt=self.color_to_png(self.color)
-        self.graph_color.plot([ pt[0] ], [ pt[1] ], 'ro')
+        self.graph_color.plot([ pt[0] ], [ pt[1] ], 'ro', markersize=10)
         self.fig_color.show()
         matplotlib.pyplot.pause(0.000001)
 
-    def prepare_picture_freqs(self):
+    def prepare_picture_freqs_absolute(self):
         self.fig_freqs=matplotlib.pyplot.figure()
         self.graph_freqs=self.fig_freqs.add_subplot(111)
         self.graph_freqs.axis([0,param.sampling_rate/2,0,param.max_band_val])
@@ -115,15 +121,34 @@ class discotheque:
                 self.graph_freqs.axvline(freq_bin_freq,0,1)
         self.fig_freqs.show()
 
-    def update_picture_freqs(self):
+    def update_picture_freqs_absolute(self):
         if self.graph_freqs.lines:
             self.graph_freqs.lines[-1].remove()
         ptx=[ int((freq_bin[0]+freq_bin[1])/2) for freq_bin in param.freq_bin_freqs ]
         pty=self.freqs
-        self.graph_freqs.plot(ptx, pty, 'ro')
+        self.graph_freqs.plot(ptx, pty, 'ro', markersize=10)
         self.fig_freqs.show()
         matplotlib.pyplot.pause(0.000001)
 
+    def prepare_picture_freqs_normalized(self):
+        self.fig_freqs=matplotlib.pyplot.figure()
+        self.graph_freqs=self.fig_freqs.add_subplot(111)
+        self.graph_freqs.axis([0,param.sampling_rate/2,-3,3])
+        self.graph_freqs.autoscale(False)
+        for freq_bin in param.freq_bin_freqs:
+            for freq_bin_freq in freq_bin:
+                self.graph_freqs.axvline(freq_bin_freq,0,1)
+        self.fig_freqs.show()
+
+    def update_picture_freqs_normalized(self):
+        if self.graph_freqs.lines:
+            self.graph_freqs.lines[-1].remove()
+        ptx=[ int((freq_bin[0]+freq_bin[1])/2) for freq_bin in param.freq_bin_freqs ]
+        pty=self.normal_freqs
+        self.graph_freqs.plot(ptx, pty, 'ro', markersize=10)
+        self.fig_freqs.show()
+        matplotlib.pyplot.pause(0.000001)
+        
     def prepare_lights(self):
         self.bridge=beautifulhue.api.Bridge(device={'ip':param.ip}, user={'name':param.username})
         self.bridge.light.update({'which':self.light_id,
@@ -170,7 +195,7 @@ def continuous_pyaudio_listener():
     p.terminate()
 
 if __name__ == "__main__":
-    disco=discotheque(normalize_signal_to_color=True)
+    disco=discotheque(light_id=4,normalize_signal_to_color=True)
     disco.prepare_lights()
     disco.prepare_audio()
     disco.prepare_picture_color()
