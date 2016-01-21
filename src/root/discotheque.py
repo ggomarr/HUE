@@ -170,7 +170,7 @@ def continuous_pyaudio_listener():
     p.terminate()
 
 if __name__ == "__main__":
-    disco=discotheque(normalize_signal_to_color=False)
+    disco=discotheque(normalize_signal_to_color=True)
     disco.prepare_lights()
     disco.prepare_audio()
     disco.prepare_picture_color()

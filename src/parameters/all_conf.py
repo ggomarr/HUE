@@ -3,7 +3,7 @@
 ip='1.1.1.104'
 username='huepymaster'
 light_id=3
-adjust_every=0.25
+adjust_every=0.10
 
 # Sound listener 
 
@@ -18,7 +18,7 @@ sampling_rate = 22050
 
 # Sluggishness
 
-sluggishness=0.75
+sluggishness=0.25
 inertia=0.05
 init_brightness=100
 init_color=[ 0.35, 0.35 ]
@@ -49,6 +49,7 @@ red_vert=[0.65,0.3]
 col_verts=[blue_vert,green_vert,red_vert]
 
 # Volume to brightness converter
+
 max_volume    =1000.0
 max_brightness=255
 brightness_scale=max_brightness/max_volume
